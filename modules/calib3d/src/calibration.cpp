@@ -2549,11 +2549,16 @@ void cvStereoRectify( const CvMat* _cameraMatrix1, const CvMat* _cameraMatrix2,
     double fc_new = DBL_MAX;
     CvPoint2D64f cc_new[2] = {};
 
-    newImgSize = newImgSize.width * newImgSize.height != 0 ? newImgSize : imageSize;
-    const double ratio_x = (double)newImgSize.width / imageSize.width / 2;
-    const double ratio_y = (double)newImgSize.height / imageSize.height / 2;
-    const double ratio = idx == 1 ? ratio_x : ratio_y;
-    fc_new = (cvmGet(_cameraMatrix1, idx ^ 1, idx ^ 1) + cvmGet(_cameraMatrix2, idx ^ 1, idx ^ 1)) * ratio;
+    for( k = 0; k < 2; k++ ) {
+        const CvMat* A = k == 0 ? _cameraMatrix1 : _cameraMatrix2;
+        const CvMat* Dk = k == 0 ? _distCoeffs1 : _distCoeffs2;
+        double dk1 = Dk && Dk->data.ptr ? cvmGet(Dk, 0, 0) : 0;
+        double fc = cvmGet(A,idx^1,idx^1);
+        if( dk1 < 0 ) {
+            fc *= 1 + dk1*(nx*nx + ny*ny)/(4*fc*fc);
+        }
+        fc_new = MIN(fc_new, fc);
+    }
 
     for( k = 0; k < 2; k++ )
     {
